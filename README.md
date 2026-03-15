@@ -44,7 +44,7 @@ npm install
 node createNewEthereumIdentity.js
 ```
 
-**Option B — Use an existing private key:**
+**Option B — Use an existing private key:** **(MOST PREFERRABLE)**
 ```bash
 node createNewEthereumIdentity.js --key <your-ethereum-private-key>
 ```
