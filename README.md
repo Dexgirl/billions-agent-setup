@@ -107,3 +107,54 @@ node manualLinkHumanToAgent.js --challenge '{"name": "Your Agent Name", "descrip
 - [ClawHub Skill Page](https://clawhub.ai/OBrezhniev/verified-agent-identity)
 - [GitHub Source](https://github.com/BillionsNetwork/verified-agent-identity)
 - [Git Bash for Windows](https://git-scm.com/downloads/win)
+
+
+## ⚠️ Known Issue: v1.0.4 Default DID Override
+
+> **TL;DR:** Upgrading the `verified-agent-identity` skill to v1.0.4 silently overrides your linked default DID and breaks FAIAR rewards eligibility. Back up before upgrading.
+
+### What happens
+
+When you run `npx clawhub@latest install verified-agent-identity` on an agent that already has a linked default DID, v1.0.4 mints a fresh Ethereum identity and writes it into `defaultDid.json` — clobbering the DID you originally linked to your human in the Billions app. Your old DID is preserved in `identities.json` and `kms.json`, but the agent stops using it. Result:
+
+- Agent reports a valid DID, so nothing looks wrong on the surface
+- Human-Link Status silently flips to `Not yet linked`
+- FAIAR rewards eligibility is lost until manually restored
+
+Filed upstream: [BillionsNetwork/verified-agent-identity#571](https://github.com/BillionsNetwork/verified-agent-identity/issues/571)
+
+### Root cause
+
+In `createNewEthereumIdentity.js` (~line 67), `isDefault: true` is hardcoded. The script doesn't check whether a default already exists before promoting itself.
+
+### Safe upgrade procedure
+
+Use the wrapper script in this repo to upgrade any agent without losing your linked DID:
+
+```bash
+./scripts/billions-upgrade-safely.sh
+```
+
+This script:
+
+1. Snapshots `~/.openclaw/billions/defaultDid.json` and `identities.json` to a timestamped backup
+2. Runs the clawhub install
+3. Diffs the post-install default DID against the snapshot
+4. Auto-restores the original default if it was overridden
+5. Verifies human-link status and reports
+
+### Manual recovery (if you've already upgraded and lost your default)
+
+If you ran the upgrade without the wrapper and your status flipped to `Not yet linked`:
+
+```bash
+./scripts/restore-default-did.sh
+```
+
+This walks through all identities in your storage, highlights which one is currently default, and lets you set the correct one.
+
+### Tested on
+
+- Ubuntu 22.04 (WSL2)
+- OpenClaw with Telegram-bound agents
+- verified-agent-identity v1.0.3 → v1.0.4
